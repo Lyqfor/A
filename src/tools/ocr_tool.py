@@ -34,8 +34,10 @@ def extract_text(image: "Image", ocr_language: str = "chi_sim+eng") -> str:
         return ""
     try:
         import pytesseract
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-        text: str = pytesseract.image_to_string(image, lang=ocr_language)
+        # text: str = pytesseract.image_to_string(image, lang=ocr_language)
+        text = pytesseract.image_to_string(image, lang="chi_sim+eng")
         return text.strip()
     except Exception as exc:
         logger.warning("OCR failed: %s", exc)
