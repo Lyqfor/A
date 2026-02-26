@@ -11,8 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# System prompt shared across all scene analyses
-_SYSTEM_PROMPT = (
+_DEFAULT_SYSTEM_PROMPT = (
     "You are a proactive desktop AI assistant. "
     "Analyse the provided screen context and return a concise, actionable "
     "suggestion in the same language as the context. "
@@ -56,7 +55,12 @@ class LLMClient:
     # Public API
     # ------------------------------------------------------------------
 
-    def get_suggestion(self, scene: str, context: str) -> str:
+    def get_suggestion(
+        self,
+        scene: str,
+        context: str,
+        system_prompt: str = _DEFAULT_SYSTEM_PROMPT,
+    ) -> str:
         """
         Request a suggestion from the LLM for *scene* and *context*.
 
@@ -83,7 +87,7 @@ class LLMClient:
             response = client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
                 max_tokens=200,

@@ -10,15 +10,15 @@ A lightweight always-on-top floating window built with tkinter that:
 
 import logging
 import queue
-import threading
 import tkinter as tk
 from tkinter import font as tkfont
 from typing import Callable
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 _WINDOW_WIDTH = 380
-_WINDOW_HEIGHT = 160
+_WINDOW_HEIGHT = 280
 _PADDING = 12
 _MAX_DISPLAY_TEXT_LENGTH = 200
 
@@ -63,7 +63,10 @@ class FloatingWindow:
         """
         Enqueue a suggestion for display.  Safe to call from any thread.
         """
-        self._queue.put((scene, context, suggestion))
+        self._queue.put(("suggestion", scene, suggestion))
+
+    def notify_capture(self, image_path: str) -> None:
+        self._queue.put(("capture", image_path, ""))
 
     def run(self) -> None:
         """
@@ -98,8 +101,10 @@ class FloatingWindow:
         btn_font = tkfont.Font(family="Helvetica", size=9)
 
         # Scene label row
+        top_frame = tk.Frame(root, bg="#1e1e2e")
+        top_frame.pack(fill="x", pady=(8, 2))
         self._scene_label = tk.Label(
-            root,
+            top_frame,
             text="💡 Waiting for context…",
             font=label_font,
             fg="#cdd6f4",
@@ -107,22 +112,42 @@ class FloatingWindow:
             anchor="w",
             padx=_PADDING,
         )
-        self._scene_label.pack(fill="x", pady=(8, 2))
+        self._scene_label.pack(side="left", fill="x", expand=True)
+        self._capture_indicator = tk.Label(
+            top_frame,
+            text="●",
+            font=label_font,
+            fg="#6c7086",
+            bg="#1e1e2e",
+            padx=_PADDING,
+        )
+        self._capture_indicator.pack(side="right")
 
-        # Suggestion text
-        self._text_label = tk.Label(
-            root,
-            text="",
+        # Suggestion text (scrollable)
+        text_frame = tk.Frame(root, bg="#1e1e2e")
+        text_frame.pack(fill="both", expand=True, padx=_PADDING, pady=(0, 4))
+        self._text_widget = tk.Text(
+            text_frame,
             font=text_font,
             fg="#a6e3a1",
             bg="#313244",
-            wraplength=_WINDOW_WIDTH - 2 * _PADDING,
-            justify="left",
-            anchor="nw",
-            padx=_PADDING,
-            pady=6,
+            wrap="word",
+            relief="flat",
+            padx=8,
+            pady=8,
+            height=8,
         )
-        self._text_label.pack(fill="x", padx=_PADDING)
+        self._text_widget.pack(side="left", fill="both", expand=True)
+        self._text_widget.config(state="disabled")
+        scrollbar = tk.Scrollbar(
+            text_frame,
+            command=self._text_widget.yview,
+            bg="#45475a",
+            troughcolor="#1e1e2e",
+            activebackground="#585b70",
+        )
+        scrollbar.pack(side="right", fill="y")
+        self._text_widget.config(yscrollcommand=scrollbar.set)
 
         # Button row
         btn_frame = tk.Frame(root, bg="#1e1e2e")
@@ -165,8 +190,11 @@ class FloatingWindow:
     def _poll_queue(self) -> None:
         try:
             while True:
-                scene, _context, suggestion = self._queue.get_nowait()
-                self._display(scene, suggestion)
+                event, value, suggestion = self._queue.get_nowait()
+                if event == "capture":
+                    self._on_capture()
+                else:
+                    self._display(value, suggestion)
         except queue.Empty:
             pass
         if self._root:
@@ -177,10 +205,22 @@ class FloatingWindow:
         self._current_suggestion = suggestion
         icon = _SCENE_ICONS.get(scene, "💡")
         self._scene_label.config(text=f"{icon}  {scene.replace('_', ' ').title()}")
-        # Trim suggestion for display
         display_text = suggestion[:_MAX_DISPLAY_TEXT_LENGTH] + ("…" if len(suggestion) > _MAX_DISPLAY_TEXT_LENGTH else "")
-        self._text_label.config(text=display_text)
+        self._append_text(
+            f"[{datetime.now().strftime('%H:%M:%S')}] {scene}\n{display_text}\n\n"
+        )
         logger.debug("Floating window updated: scene=%s", scene)
+
+    def _append_text(self, text: str) -> None:
+        self._text_widget.config(state="normal")
+        self._text_widget.insert("end", text)
+        self._text_widget.see("end")
+        self._text_widget.config(state="disabled")
+
+    def _on_capture(self) -> None:
+        self._capture_indicator.config(fg="#f9e2af")
+        if self._root:
+            self._root.after(180, lambda: self._capture_indicator.config(fg="#6c7086"))
 
     # ------------------------------------------------------------------
     # Button handlers
@@ -192,7 +232,9 @@ class FloatingWindow:
         self._dismiss()
 
     def _dismiss(self) -> None:
-        self._text_label.config(text="")
+        self._text_widget.config(state="normal")
+        self._text_widget.delete("1.0", "end")
+        self._text_widget.config(state="disabled")
         self._scene_label.config(text="💡 Waiting for context…")
         self._current_scene = ""
         self._current_suggestion = ""

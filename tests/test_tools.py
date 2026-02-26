@@ -129,6 +129,8 @@ class TestLLMClient:
         assert "[LLM error:" in result
 
     def test_get_suggestion_success(self, monkeypatch):
+        captured = {}
+
         class FakeMessage:
             content = "Run: pip install missing-lib"
 
@@ -139,7 +141,8 @@ class TestLLMClient:
             choices = [FakeChoice()]
 
         class FakeChatCompletions:
-            def create(self, **_kwargs):
+            def create(self, **kwargs):
+                captured.update(kwargs)
                 return FakeResponse()
 
         class FakeChat:
@@ -151,5 +154,10 @@ class TestLLMClient:
 
         client = LLMClient(api_key="fake-key")
         client._client = FakeOpenAI()
-        result = client.get_suggestion("coding_error", "ImportError: No module named X")
+        result = client.get_suggestion(
+            "coding_error",
+            "ImportError: No module named X",
+            system_prompt="custom prompt",
+        )
         assert result == "Run: pip install missing-lib"
+        assert captured["messages"][0]["content"] == "custom prompt"
