@@ -87,7 +87,7 @@ class SettingsPanel:
 
     def _save(self, win: tk.Toplevel | tk.Tk) -> None:
         updates: dict = {}
-        for _label, key, field_type in _EDITABLE_FIELDS:
+        for label_text, key, field_type in _EDITABLE_FIELDS:
             raw = self._entries[key].get().strip()
             try:
                 if field_type == "int":
