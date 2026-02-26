@@ -26,7 +26,7 @@ DEFAULT_INTENT_PROMPT = (
 _DEFAULTS: dict[str, Any] = {
     "llm_api_key": "75130a63-7342-4c55-8cf7-1f8f276d6818",  # 替换为你的Bearer后的真实API密钥（即curl里的XXX）
     "llm_model": "doubao-1-5-lite-32k-250115",
-    "llm_base_url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+    "llm_base_url": "https://ark.cn-beijing.volces.com/api/v3",
     # "llm_api_key": "",
     # "llm_model": "gpt-4o-mini",
     # "llm_base_url": "https://api.openai.com/v1",
