@@ -67,6 +67,13 @@ class TestConfigManager:
         cfg = ConfigManager(config_path=path)
         assert cfg.get("llm_model") == _DEFAULTS["llm_model"]
 
+    def test_get_intent_prompt_reads_from_file(self, tmp_path):
+        cfg = self._make_config(tmp_path)
+        prompt_path = tmp_path / "intent_prompt.txt"
+        prompt_path.write_text("test prompt {suggestion_count}", encoding="utf-8")
+        cfg.set("intent_prompt_file", str(prompt_path))
+        assert "test prompt" in cfg.get_intent_prompt()
+
 
 # ---------------------------------------------------------------------------
 # Database tests

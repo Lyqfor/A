@@ -29,6 +29,7 @@ Data Storage Layer          (src/storage/)
 - **Scene detection** — automatically recognises coding errors, unknown terms, document editing, web browsing
 - **One-click execution** — runs suggested shell commands through a safety-checked executor
 - **Persistent history** — all suggestions and operation logs stored in `~/.ai_assistant/`
+- **Pipeline logging** — each screenshot path, OCR result, and intent output is appended to `~/.ai_assistant/pipeline_log.jsonl`
 - **Configurable** — model, API key, capture interval, OCR language all editable via the Settings panel
 
 ## Requirements
@@ -57,6 +58,8 @@ Key settings:
 | `llm_base_url` | `"https://api.openai.com/v1"` | API base URL |
 | `capture_interval_seconds` | `3` | Screen capture frequency |
 | `ocr_language` | `"chi_sim+eng"` | Tesseract language string |
+| `next_step_suggestion_count` | `3` | Number of next-step suggestions requested from the model |
+| `intent_prompt_file` | `~/.ai_assistant/intent_prompt.txt` | Editable intent prompt template file (`{suggestion_count}` placeholder supported) |
 
 ## Running
 

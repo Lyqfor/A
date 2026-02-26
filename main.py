@@ -66,6 +66,7 @@ def main() -> None:
 
     # Connect the agent's output to the floating window
     agent.register_callback(window.show_suggestion)
+    agent.register_capture_callback(window.notify_capture)
 
     # Start the agent loop before entering the Tk event loop
     agent.start()

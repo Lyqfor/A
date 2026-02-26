@@ -14,15 +14,20 @@ fake_tk.StringVar = type("StringVar", (), {})
 fake_messagebox = types.ModuleType("tkinter.messagebox")
 fake_messagebox.showerror = lambda *args, **kwargs: None
 fake_ttk = types.ModuleType("tkinter.ttk")
+fake_font = types.ModuleType("tkinter.font")
+fake_font.Font = type("Font", (), {})
 fake_tk.messagebox = fake_messagebox
 fake_tk.ttk = fake_ttk
+fake_tk.font = fake_font
 sys.modules.setdefault("tkinter", fake_tk)
 sys.modules.setdefault("tkinter.messagebox", fake_messagebox)
 sys.modules.setdefault("tkinter.ttk", fake_ttk)
+sys.modules.setdefault("tkinter.font", fake_font)
 
 import pytest
 
 from src.storage.config_manager import ConfigManager
+from src.ui.floating_window import FloatingWindow
 from src.ui.settings_panel import SettingsPanel, _EDITABLE_FIELDS
 
 
@@ -74,3 +79,47 @@ def test_settings_panel_invalid_value_shows_error(tmp_path: Path, monkeypatch):
     assert "Capture Interval (seconds)" in captured["message"]
     assert captured["parent"] is win
     assert win.destroyed is False
+
+
+def test_floating_window_queue_updates_scene_and_capture_indicator():
+    class _DummyLabel:
+        def __init__(self):
+            self.values = {}
+
+        def config(self, **kwargs):
+            self.values.update(kwargs)
+
+    class _DummyText:
+        def __init__(self):
+            self.content = ""
+
+        def config(self, **_kwargs):
+            return None
+
+        def insert(self, _where, text):
+            self.content += text
+
+        def see(self, _where):
+            return None
+
+        def delete(self, _start, _end):
+            self.content = ""
+
+    class _DummyRoot:
+        def after(self, ms, callback):
+            if ms == 180:
+                callback()
+
+    window = FloatingWindow()
+    window._scene_label = _DummyLabel()
+    window._capture_indicator = _DummyLabel()
+    window._text_widget = _DummyText()
+    window._root = _DummyRoot()
+
+    window.notify_capture("")
+    window.show_suggestion("coding_error", "ctx", "建议内容")
+    window._poll_queue()
+
+    assert "Coding Error" in window._scene_label.values["text"]
+    assert "建议内容" in window._text_widget.content
+    assert window._capture_indicator.values["fg"] == "#6c7086"

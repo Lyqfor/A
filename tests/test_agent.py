@@ -4,6 +4,7 @@ Tests for the Core Agent Layer.
 
 import pytest
 
+from src.agent.agent_core import AgentCore
 from src.agent.context_manager import ContextEntry, ContextManager
 from src.agent.scene_recognizer import (
     SCENE_CODING_ERROR,
@@ -13,6 +14,8 @@ from src.agent.scene_recognizer import (
     SCENE_WEB_BROWSING,
     SceneRecognizer,
 )
+from src.storage.config_manager import ConfigManager
+from src.storage.database import Database
 
 
 # ---------------------------------------------------------------------------
@@ -138,3 +141,46 @@ class TestSceneRecognizer:
         )
         result = self._rec().recognise(text)
         assert result.confidence == pytest.approx(1.0)
+
+
+def test_agent_core_writes_pipeline_log_and_capture(monkeypatch, tmp_path):
+    class FakeImage:
+        def save(self, path):
+            path.write_bytes(b"img")
+
+    class FakeResult:
+        scene = SCENE_CODING_ERROR
+        confidence = 0.9
+
+    class FakeLLM:
+        def get_suggestion(self, scene, context, system_prompt):
+            assert "{suggestion_count}" not in system_prompt
+            return "意图：修复报错\n1. 检查依赖\n2. 重试运行"
+
+    cfg = ConfigManager(config_path=tmp_path / "config.json")
+    cfg.set("intent_prompt_file", str(tmp_path / "prompt.txt"))
+    (tmp_path / "prompt.txt").write_text("请给出{suggestion_count}条建议", encoding="utf-8")
+    cfg.set("next_step_suggestion_count", 2)
+    db = Database(db_path=tmp_path / "test.db")
+    agent = AgentCore(config=cfg, db=db)
+    agent._log_dir = tmp_path
+    agent._capture_dir = tmp_path / "captures"
+    agent._capture_dir.mkdir(parents=True, exist_ok=True)
+    agent._pipeline_log_path = tmp_path / "pipeline_log.jsonl"
+
+    monkeypatch.setattr("src.agent.agent_core.screen_capture.capture_screen", lambda: FakeImage())
+    monkeypatch.setattr("src.agent.agent_core.ocr_tool.extract_text", lambda *_args, **_kwargs: "Traceback Error")
+    monkeypatch.setattr(agent.scene_recognizer, "recognise", lambda _text: FakeResult())
+    monkeypatch.setattr(agent, "_get_llm", lambda: FakeLLM())
+
+    captures = []
+    agent.register_capture_callback(lambda path: captures.append(path))
+    suggestion = agent.run_once()
+
+    assert suggestion is not None
+    assert captures and captures[0].endswith(".png")
+    log_lines = (tmp_path / "pipeline_log.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert len(log_lines) == 1
+    assert "ocr_text" in log_lines[0]
+    assert "intent_result" in log_lines[0]
+    db.close()
