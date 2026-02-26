@@ -20,6 +20,8 @@ sys.modules.setdefault("tkinter", fake_tk)
 sys.modules.setdefault("tkinter.messagebox", fake_messagebox)
 sys.modules.setdefault("tkinter.ttk", fake_ttk)
 
+import pytest
+
 from src.storage.config_manager import ConfigManager
 from src.ui.settings_panel import SettingsPanel, _EDITABLE_FIELDS
 
@@ -61,7 +63,9 @@ def test_settings_panel_invalid_value_shows_error(tmp_path: Path, monkeypatch):
         captured["parent"] = parent
 
     monkeypatch.setattr("src.ui.settings_panel.messagebox.showerror", fake_showerror)
-    monkeypatch.setattr(config, "update", lambda _updates: (_ for _ in ()).throw(AssertionError("update should not be called")))
+    monkeypatch.setattr(
+        config, "update", lambda _updates: pytest.fail("update should not be called")
+    )
 
     win = _DummyWin()
     panel._save(win)
