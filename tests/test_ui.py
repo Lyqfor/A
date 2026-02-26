@@ -116,7 +116,7 @@ def test_floating_window_queue_updates_scene_and_capture_indicator():
     window._text_widget = _DummyText()
     window._root = _DummyRoot()
 
-    window.notify_capture("")
+    window.notify_capture("/path/to/capture.png")
     window.show_suggestion("coding_error", "ctx", "建议内容")
     window._poll_queue()
 

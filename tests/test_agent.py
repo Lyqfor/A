@@ -184,3 +184,38 @@ def test_agent_core_writes_pipeline_log_and_capture(monkeypatch, tmp_path):
     assert "ocr_text" in log_lines[0]
     assert "intent_result" in log_lines[0]
     db.close()
+
+
+def test_agent_core_uses_raw_prompt_when_format_fails(monkeypatch, tmp_path):
+    class FakeImage:
+        def save(self, path):
+            path.write_bytes(b"img")
+
+    class FakeResult:
+        scene = SCENE_CODING_ERROR
+        confidence = 0.9
+
+    captured_prompt = {}
+
+    class FakeLLM:
+        def get_suggestion(self, scene, context, system_prompt):
+            captured_prompt["value"] = system_prompt
+            return "ok"
+
+    cfg = ConfigManager(config_path=tmp_path / "config.json")
+    cfg.set("intent_prompt_file", str(tmp_path / "prompt_invalid.txt"))
+    (tmp_path / "prompt_invalid.txt").write_text("bad {", encoding="utf-8")
+    db = Database(db_path=tmp_path / "test2.db")
+    agent = AgentCore(config=cfg, db=db)
+    agent._capture_dir = tmp_path / "captures2"
+    agent._capture_dir.mkdir(parents=True, exist_ok=True)
+    agent._pipeline_log_path = tmp_path / "pipeline_log2.jsonl"
+
+    monkeypatch.setattr("src.agent.agent_core.screen_capture.capture_screen", lambda: FakeImage())
+    monkeypatch.setattr("src.agent.agent_core.ocr_tool.extract_text", lambda *_args, **_kwargs: "Traceback Error")
+    monkeypatch.setattr(agent.scene_recognizer, "recognise", lambda _text: FakeResult())
+    monkeypatch.setattr(agent, "_get_llm", lambda: FakeLLM())
+
+    agent.run_once()
+    assert captured_prompt["value"] == "bad {"
+    db.close()

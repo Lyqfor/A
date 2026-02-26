@@ -74,6 +74,11 @@ class TestConfigManager:
         cfg.set("intent_prompt_file", str(prompt_path))
         assert "test prompt" in cfg.get_intent_prompt()
 
+    def test_init_creates_default_prompt_file(self, tmp_path):
+        cfg = self._make_config(tmp_path)
+        prompt_path = Path(cfg.get("intent_prompt_file"))
+        assert prompt_path.exists()
+
 
 # ---------------------------------------------------------------------------
 # Database tests

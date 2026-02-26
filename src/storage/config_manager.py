@@ -117,6 +117,7 @@ class ConfigManager:
         self._ensure_prompt_file()
 
     def get_intent_prompt(self) -> str:
+        """Read the intent prompt from configured file, with safe fallback."""
         prompt_path = Path(self.get("intent_prompt_file", str(DEFAULT_PROMPT_PATH)))
         try:
             text = prompt_path.read_text(encoding="utf-8").strip()

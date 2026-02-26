@@ -205,7 +205,12 @@ class AgentCore:
         suggestion_count = int(self.config.get("next_step_suggestion_count", 3))
         try:
             system_prompt = prompt_template.format(suggestion_count=suggestion_count)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Failed to format intent prompt template with suggestion_count=%s: %s",
+                suggestion_count,
+                exc,
+            )
             system_prompt = prompt_template
         suggestion = self._get_llm().get_suggestion(
             result.scene,
